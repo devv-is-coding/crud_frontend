@@ -19,7 +19,8 @@ const Navrbar = () => {
           </button>
           <div className="collapse navbar-collapse" id="navbarNav">
             <ul className="navbar-nav ms-auto">
-              {authToken ? (
+              { 
+              authToken ? (
                 <>
                   <li className="nav-item">
                     <Link className="nav-link" href="/dashboard">

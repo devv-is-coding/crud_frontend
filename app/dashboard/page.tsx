@@ -134,6 +134,40 @@ const Dashboard: React.FC = () => {
       console.log("Error fetching products:", error);
     }
   };
+
+  const handleDeleteProduct = async (id: number) => {
+     Swal.fire({
+  title: "Are you sure?",
+  text: "You won't be able to revert this!",
+  icon: "warning",
+  showCancelButton: true,
+  confirmButtonColor: "#3085d6",
+  cancelButtonColor: "#d33",
+  confirmButtonText: "Yes, delete it!"
+}).then(async(result) => {
+  if (result.isConfirmed) {
+    try{
+      const response =  await axios.delete(`${API_URL}/products/${id}`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      })
+      if (response.data.status) {
+        // toast.success(response.data.message);
+        Swal.fire({
+      title: "Deleted!",
+      text: "Your file has been deleted.",
+      icon: "success"
+    });
+        fetchAllProducts();
+      }
+    }catch(error){
+      console.error("Error deleting product:", error);
+    }
+    
+  }
+});
+  }
   return (
     <>
       <div className="container mt-4">
@@ -239,12 +273,12 @@ const Dashboard: React.FC = () => {
                             banner_image: singleProduct.banner_image, // this is a string
                           });
                           setIsEdit(true);
-                          // if (fileRef.current) { fileRef.current.value = ""; }
+                          if (fileRef.current) { fileRef.current.value = ""; }
                         }}
                       >
                         Edit
                       </button>
-                      <button className="btn btn-danger btn-sm">Delete</button>
+                      <button className="btn btn-danger btn-sm" onClick={ () => handleDeleteProduct(singleProduct.id!)}>Delete</button>
                     </td>
                   </tr>
                 ))}

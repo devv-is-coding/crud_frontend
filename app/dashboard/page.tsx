@@ -1,5 +1,11 @@
 "use client";
-import React, { useEffect, useRef, FormEvent, ChangeEvent } from "react";
+import React, {
+  useEffect,
+  useRef,
+  FormEvent,
+  ChangeEvent,
+  useState,
+} from "react";
 import Image from "next/image";
 import { myAppHook } from "@/context/AppProvider";
 import { useRouter } from "next/navigation";
@@ -15,15 +21,16 @@ interface ProductType {
   description?: string;
   cost?: number;
   file?: string;
-  banner_image?: string | null;
+  banner_image?: File | string | null;
 }
 
 const Dashboard: React.FC = () => {
   const { authToken, isLoading } = myAppHook();
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [products, setProducts] = React.useState<ProductType[]>([]);
-  const [formData, setFormData] = React.useState<ProductType>({
+  const [products, setProducts] = useState<ProductType[]>([]);
+  const [isEdit, setIsEdit] = useState<boolean>(false);
+  const [formData, setFormData] = useState<ProductType>({
     title: "",
     description: "",
     cost: 0,
@@ -42,10 +49,11 @@ const Dashboard: React.FC = () => {
   //On change form
   const handleOnChangeEvent = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
-        const file = event.target.files[0];
+      const file = event.target.files[0];
       setFormData({
         ...formData,
         file: URL.createObjectURL(file),
+        banner_image: file,
       });
     } else {
       setFormData({
@@ -59,28 +67,55 @@ const Dashboard: React.FC = () => {
     event.preventDefault();
 
     try {
-      const response = await axios.post(`${API_URL}/products`, formData, {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      const form = new FormData();
+      form.append("title", formData.title);
+      form.append("description", formData.description || "");
+      form.append("cost", String(formData.cost ?? 0));
 
-      if (response.data.status) {
+      if (formData.banner_image instanceof File) {
+        form.append("banner_image", formData.banner_image);
+      }
+
+      if (isEdit && formData.id) {
+        form.append("_method", "PUT");
+
+        const response = await axios.post(
+          `${API_URL}/products/${formData.id}`,
+          form,
+          {
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+
         toast.success(response.data.message);
-        setFormData({
-          title: "",
-          description: "",
-          cost: 0,
-          file: "",
-          banner_image: null,
+      } else {
+        const response = await axios.post(`${API_URL}/products`, form, {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            "Content-Type": "multipart/form-data",
+          },
         });
-        if (fileRef.current) {
-          fileRef.current.value = "";
+
+        if (response.data.status) {
+          toast.success(response.data.message);
+          setFormData({
+            title: "",
+            description: "",
+            cost: 0,
+            file: "",
+            banner_image: null,
+          });
+          if (fileRef.current) {
+            fileRef.current.value = "";
+          }
         }
       }
 
-      console.log(response);
+      fetchAllProducts();
+      setIsEdit(false);
     } catch (error) {
       console.log("Error submitting form:", error);
     }
@@ -105,7 +140,7 @@ const Dashboard: React.FC = () => {
         <div className="row">
           <div className="col-md-6">
             <div className="card p-4">
-              <h4>Add Product</h4>
+              <h4>{isEdit ? "Edit" : "Add"} Product</h4>
               <form onSubmit={handleFormSubmit}>
                 <input
                   className="form-control mb-2"
@@ -152,7 +187,7 @@ const Dashboard: React.FC = () => {
                   id="bannerInput"
                 />
                 <button className="btn btn-primary" type="submit">
-                  Add Product
+                  {isEdit ? "Update" : "Add"} Product
                 </button>
               </form>
             </div>
@@ -170,22 +205,43 @@ const Dashboard: React.FC = () => {
               </thead>
               <tbody>
                 {products.map((singleProduct, index) => (
-                  <tr key={ singleProduct.id || index }>
+                  <tr key={singleProduct.id || index}>
                     <td>{singleProduct.id}</td>
                     <td>{singleProduct.title}</td>
                     <td>
-                        {
-                             singleProduct.banner_image ? (<Image src={singleProduct.banner_image} alt="Product" width= {50} height= {50}/>) : "No Image"
-                        }
+                      {singleProduct.banner_image ? (
+                        <Image
+                          src={
+                            typeof singleProduct.banner_image === "string"
+                              ? singleProduct.banner_image
+                              : ""
+                          }
+                          alt="Product"
+                          width={50}
+                          height={50}
+                        />
+                      ) : (
+                        "No Image"
+                      )}
                     </td>
+
                     <td>{singleProduct.cost}</td>
                     <td>
-                      <button className="btn btn-warning btn-sm me-2" onClick={() => {setFormData({
-                        id: singleProduct.id,
-                        title: singleProduct.title,
-                        description: singleProduct.description,
-                        cost: singleProduct.cost,
-                      })}}>
+                      <button
+                        className="btn btn-warning btn-sm me-2"
+                        onClick={() => {
+                          setFormData({
+                            id: singleProduct.id,
+                            title: singleProduct.title,
+                            description: singleProduct.description,
+                            cost: singleProduct.cost,
+                            file: "", // no preview
+                            banner_image: singleProduct.banner_image, // this is a string
+                          });
+                          setIsEdit(true);
+                          // if (fileRef.current) { fileRef.current.value = ""; }
+                        }}
+                      >
                         Edit
                       </button>
                       <button className="btn btn-danger btn-sm">Delete</button>

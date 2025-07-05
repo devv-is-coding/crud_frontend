@@ -74,10 +74,10 @@ export const AppProvider = ({
                 password_confirmation
             });
             
-            console.log(response)
+            toast.success(response.data.message);
         }
         catch(error){
-            console.log(error);
+            toast.error("Registration failed");
         }
         finally{
             setIsLoading(false);
